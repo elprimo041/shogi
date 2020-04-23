@@ -1,6 +1,21 @@
 # -*- coding: utf-8 -*-
 import copy
 
+
+
+class Piece():
+    def __init__(self, name_, point_, owner_):
+        self.name = name_
+        self.point = point_
+        self.owner = owner_
+        self.promote = False
+        self.movavle_point = []
+        
+    def move(self, point_after_):
+        self.point = point_after_
+        
+        
+        
 class ShogiGame():
     def __init__(self, sente_ = True):
         self.sente = sente_
