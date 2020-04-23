@@ -7,6 +7,16 @@ from tkinter import messagebox
 import sys
 import copy
 
+class Square():
+    def __init__(self, screen_size_):
+        self.SCREEN_SIZE = screen_size_
+        board_size_rate = [3330, 3640]
+        square_size_rate = [352, 386]
+        scaling_rate = board_size_rate[0] / (self.SCREEN_SIZE[0] * 0.7)
+        self.BOARD_SIZE = [int(d / scaling_rate) for d in board_size_rate]
+        self.SQUARE_SIZE = [int(d / scaling_rate) for d in square_size_rate]
+    
+
 class ShogiGUI():
     def __init__(self, screen_size_ = 300):
         # スクリーンサイズの0.7倍の大きさを盤の大きさとする
@@ -24,7 +34,7 @@ class ShogiGUI():
         
         # マス目に対する駒の大きさの割合を指定し、画像を読み込んで画像のサイズからマス目の大きさを決定
         self.PIECE_RATE = 0.9        
-        image = pygame.image.load("../img/piece/piece_ou.png")
+        image = pygame.image.load("../piece/piece_ou.png")
         rect = image.get_rect()
         width = rect[2]
         self.PIECE_SCALE = self.SQUARE_SIZE[0] * self.PIECE_RATE / width
@@ -53,7 +63,7 @@ class ShogiGUI():
 
     def main_loop(self):
         # loop内で用いる変数        
-        piece_all_GUI = copy.deepcopy(self.game.piece_all)
+        piece_all = copy.deepcopy(self.game.piece_all)
         state_select = 0            # 何も選択していない状態なら0、動かせる駒を選択している状態なら1、成るか確認中の状態なら2     
         square_select = [-1, -1]
         movable_point = []
@@ -66,7 +76,7 @@ class ShogiGUI():
         while True:
             self.screen.fill((self.COLOR_BG[0], self.COLOR_BG[1], self.COLOR_BG[2]))
             self.draw_board()
-            self.draw_all_piece(piece_all_GUI)
+            self.draw_all_piece(piece_all)
             
             if state_select == 1:
                 self.draw_emphasis_square(square_select, movable_point)
@@ -78,29 +88,29 @@ class ShogiGUI():
                     pygame.quit()                                                                
                     sys.exit()
                 
-                if event.type == KEYDOWN:
-                    if event.key == K_x:
-                        for piece in piece_all_GUI:
-                            print(piece)
+                # if event.type == KEYDOWN:
+                #     if event.key == K_x:
+                #         for piece in piece_all_GUI:
+                #             print(piece)
                 
                 if (event.type == pygame.MOUSEBUTTONDOWN) and (event.button == 1):
                     if state_select == 0:                     
-                        for i in range(len(self.rect_squares)):
-                            for j in range(len(self.rect_squares[i])):
-                                if self.rect_squares[i][j].collidepoint(event.pos):
+                        for y in range(len(self.rect_squares)):
+                            for x in range(len(self.rect_squares[i])):
+                                if self.rect_squares[x][y].collidepoint(event.pos):
                                     # 持ち駒を選択したか判定
-                                    if i == 0:
+                                    if y == 0:
                                         if (self.game.turn) == True and (len(self.list_possession_piece_true[0]) > j):
                                             square_select = [i, j]
                                             state_select = 1
                                             name = self.list_possession_piece_true[0][j]                                            
-                                            for index_piece in range(len(piece_all_GUI)):
-                                                if (piece_all_GUI[index_piece][0] == name) and (piece_all_GUI[index_piece][1] == [0, 0]):
+                                            for piece in piece_all:
+                                                if (piece_all.name == name) and (piece_all_GUI[index_piece][1] == [0, 0]):
                                                     index_before = index_piece
                                                     movable_point = piece_all_GUI[index_before][3]
                                                     break
                                                
-                                    elif i == 10:
+                                    elif y == 10:
                                         if (self.game.turn) == False and (len(self.list_possession_piece_false[0]) > j):
                                             square_select = [i, j]
                                             state_select = 1
@@ -206,7 +216,7 @@ class ShogiGUI():
         piece_name = ["hu", "to", "kyo", "narikyo", "kei", "narikei", "gin", "narigin", "kin",
                       "hisya", "ryu", "kaku", "uma", "ou", "gyoku"]
         for name in piece_name:
-            img = pygame.image.load("../img/piece/piece_" + name + ".png")
+            img = pygame.image.load("../piece/piece_" + name + ".png")
             img_rect = img.get_rect()
             img = pygame.transform.scale(img, (int(img_rect[2] * self.PIECE_SCALE), int(img_rect[3] * self.PIECE_SCALE)))
             self.img_pieces[name] = img

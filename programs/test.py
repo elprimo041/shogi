@@ -9,4 +9,14 @@ class PieceID(enum.Enum):
     hu = 1
     hisya = 2
 
-print(PieceName.hu.value)
+
+dic = {"hu":0, "hisya":0}
+
+print(dic["hu"])
+dic["hu"] -= 1
+print(dic)
+
+print(type(dic.keys()))
+
+for i in range(10):
+    print(i)
