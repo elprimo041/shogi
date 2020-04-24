@@ -10,13 +10,6 @@ class PieceID(enum.Enum):
     hisya = 2
 
 
-dic = {"hu":0, "hisya":0}
+print(not False)
 
-print(dic["hu"])
-dic["hu"] -= 1
-print(dic)
 
-print(type(dic.keys()))
-
-for i in range(10):
-    print(i)

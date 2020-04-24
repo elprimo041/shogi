@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import copy
 import enum
+import sys
 
 class PieceName(enum.Enum):
     ou = "玉"
@@ -58,10 +59,6 @@ class Piece():
         self.ID = abs(self.ID)
         self.name = self.get_name()
         self.owner = not self.owner
-        if self.owner == True:
-            self.point = [0, 10]
-        elif self.owner == False:
-            self.point = [0, 0]
         self.is_hold = True
 
     def get_name(self):
@@ -70,6 +67,7 @@ class Piece():
     def status(self, print_movavle_ = True):
         print("name : {}".format(self.name))
         print("point : {}".format(self.point))
+        print("is_hold : {}".format(self.is_hold))
         print("owner : {}".format(self.owner))
         if print_movavle_ == True:
             print("movable point : {}".format(self.movable_point))
@@ -81,26 +79,23 @@ class ShogiGame():
         self.is_checkmate = False
         self.winner = ""
         # 持ち駒を表す辞書{"駒の名前":数}
-        self.piece_all, self.possession_piece_true,self.possession_piece_false \
-        = self.initialize_piece(sente_)
+        self.piece_all = self.initialize_piece(sente_)
 
     def proceed_turn(self, point_before_, point_after_, is_promote_):
         # 駒の移動
         index_move = self.get_piece_index(self.piece_all, point_before_)
         piece_all_tmp = copy.deepcopy(self.piece_all)
-        if self.turn == True:
-            possession_dummy = copy.copy(self.possession_piece_true)
-            self.piece_all, self.possession_piece_true = \
-            self.move_piece(piece_all_tmp, index_move, point_after_, is_promote_, possession_dummy)
-        elif self.turn == False:
-            possession_dummy = copy.copy(self.possession_piece_true)
-            self.piece_all, self.possession_piece_true = \
-            self.move_piece(piece_all_tmp, index_move, point_after_, is_promote_, possession_dummy)
+        self.piece_all = self.move_piece(piece_all_tmp, index_move, point_after_, is_promote_)
         
         # 移動可能位置の更新
         self.turn = not(self.turn)
         piece_all_tmp = copy.deepcopy(self.piece_all)
-        self.piece_all = self.get_movable_point(piece_all_tmp, self.turn)
+        piece_all_tmp = self.get_movable_point(piece_all_tmp, self.turn)
+        piece_all_tmp = self.remove_prohibited_move(piece_all_tmp, copy.copy(self.turn))
+        self.piece_all = copy.deepcopy(piece_all_tmp)
+        
+        if self.is_check(piece_all_tmp, copy.copy(self.turn)) == True:
+            print("王手")
         
         # 詰みの判定
         is_checkmate = True
@@ -120,59 +115,51 @@ class ShogiGame():
                 self.winner = "後手(True)"
         
     def initialize_piece(self, turn_):
-        pieces = []
-        pieces.append(Piece("gyoku", [5,1], False))
-        pieces.append(Piece("hu", [1,3], False))
-        pieces.append(Piece("hu", [2,3], False))
-        pieces.append(Piece("hu", [3,3], False))
-        pieces.append(Piece("hu", [4,3], False))
-        pieces.append(Piece("hu", [5,3], False))
-        pieces.append(Piece("hu", [6,3], False))
-        pieces.append(Piece("hu", [7,3], False))
-        pieces.append(Piece("hu", [8,3], False))
-        pieces.append(Piece("hu", [9,3], False))
-        pieces.append(Piece("kyo", [1,1], False))
-        pieces.append(Piece("kyo", [9,1], False))
-        pieces.append(Piece("kei", [2,1], False))
-        pieces.append(Piece("kei", [8,1], False))
-        pieces.append(Piece("gin", [3,1], False))
-        pieces.append(Piece("gin", [7,1], False))
-        pieces.append(Piece("kin", [6,1], False))
-        pieces.append(Piece("kin", [4,1], False))        
-        pieces.append(Piece("hisya", [8,2], False))
-        pieces.append(Piece("kaku", [2,2], False))
+        piece_all = []
+        piece_all.append(Piece("gyoku", [5,1], False))
+        piece_all.append(Piece("hu", [1,3], False))
+        piece_all.append(Piece("hu", [2,3], False))
+        piece_all.append(Piece("hu", [3,3], False))
+        piece_all.append(Piece("hu", [4,3], False))
+        piece_all.append(Piece("hu", [5,3], False))
+        piece_all.append(Piece("hu", [6,3], False))
+        piece_all.append(Piece("hu", [7,3], False))
+        piece_all.append(Piece("hu", [8,3], False))
+        piece_all.append(Piece("hu", [9,3], False))
+        piece_all.append(Piece("kyo", [1,1], False))
+        piece_all.append(Piece("kyo", [9,1], False))
+        piece_all.append(Piece("kei", [2,1], False))
+        piece_all.append(Piece("kei", [8,1], False))
+        piece_all.append(Piece("gin", [3,1], False))
+        piece_all.append(Piece("gin", [7,1], False))
+        piece_all.append(Piece("kin", [6,1], False))
+        piece_all.append(Piece("kin", [4,1], False))        
+        piece_all.append(Piece("hisya", [8,2], False))
+        piece_all.append(Piece("kaku", [2,2], False))
 
-        pieces.append(Piece("ou", [5,9], True))
-        pieces.append(Piece("hu", [1,7], True))
-        pieces.append(Piece("hu", [2,7], True))
-        pieces.append(Piece("hu", [3,7], True))
-        pieces.append(Piece("hu", [4,7], True))
-        pieces.append(Piece("hu", [5,7], True))
-        pieces.append(Piece("hu", [6,7], True))
-        pieces.append(Piece("hu", [7,7], True))
-        pieces.append(Piece("hu", [8,7], True))
-        pieces.append(Piece("hu", [9,7], True))
-        pieces.append(Piece("kyo", [1,9], True))
-        pieces.append(Piece("kyo", [9,9], True))
-        pieces.append(Piece("kei", [2,9], True))
-        pieces.append(Piece("kei", [8,9], True))
-        pieces.append(Piece("gin", [3,9], True))
-        pieces.append(Piece("gin", [7,9], True))
-        pieces.append(Piece("kin", [6,9], True))
-        pieces.append(Piece("kin", [4,9], True))        
-        pieces.append(Piece("hisya", [2,8], True))
-        pieces.append(Piece("kaku", [8,8], True))
+        piece_all.append(Piece("ou", [5,9], True))
+        piece_all.append(Piece("hu", [1,7], True))
+        piece_all.append(Piece("hu", [2,7], True))
+        piece_all.append(Piece("hu", [3,7], True))
+        piece_all.append(Piece("hu", [4,7], True))
+        piece_all.append(Piece("hu", [5,7], True))
+        piece_all.append(Piece("hu", [6,7], True))
+        piece_all.append(Piece("hu", [7,7], True))
+        piece_all.append(Piece("hu", [8,7], True))
+        piece_all.append(Piece("hu", [9,7], True))
+        piece_all.append(Piece("kyo", [1,9], True))
+        piece_all.append(Piece("kyo", [9,9], True))
+        piece_all.append(Piece("kei", [2,9], True))
+        piece_all.append(Piece("kei", [8,9], True))
+        piece_all.append(Piece("gin", [3,9], True))
+        piece_all.append(Piece("gin", [7,9], True))
+        piece_all.append(Piece("kin", [6,9], True))
+        piece_all.append(Piece("kin", [4,9], True))        
+        piece_all.append(Piece("hisya", [2,8], True))
+        piece_all.append(Piece("kaku", [8,8], True))
 
-        self.get_movable_point(pieces, turn_)
-        
-        possession_piece_name = ["hu", "kyo", "kei", "gin", "kin", "hisya", "kaku"]
-        possession_piece_true = {}
-        possession_piece_false = {}
-        for piece_name in possession_piece_name:
-            possession_piece_true[piece_name] = 0
-            possession_piece_false[piece_name] = 0 
-            
-        return pieces, possession_piece_true, possession_piece_false
+        piece_all = self.get_movable_point(piece_all, turn_)            
+        return piece_all
 
     def get_movable_point(self, piece_all_, turn_):
         def rel_point(piece_, direction_, distance_):
@@ -181,31 +168,30 @@ class ShogiGame():
             ## l  p r
             ## lt t rt
             if "r" in direction_:
-                x = piece.point[0] - int((piece.owner - 0.5) * 2)
+                x = piece.point[0] - int((piece.owner - 0.5) * 2) * distance_
             elif "l" in direction_:
-                x = piece.point[0] + int((piece.owner - 0.5) * 2)
+                x = piece.point[0] + int((piece.owner - 0.5) * 2) * distance_
             else:
-                x = 0
+                x = piece.point[0]
                 
             if "h" in direction_:
-                y = piece.point[1] - int((piece.owner - 0.5) * 2)
+                y = piece.point[1] - int((piece.owner - 0.5) * 2) * distance_
             elif "t" in direction_:
-                y = piece.point[1] + int((piece.owner - 0.5) * 2)
+                y = piece.point[1] + int((piece.owner - 0.5) * 2) * distance_
             else:
-                y = 0
-
-            rel_x = piece.point[0] + x * distance_
-            rel_y = piece.point[1] + y * distance_
-            return [rel_x, rel_y]
+                y = piece.point[1]
+                
+            return [x, y]
                     
-        for piece in piece_all_:
+        for i in range(len(piece_all_)):
+            piece = piece_all_[i]
             reachable_point = []            # 盤面のサイズや移動先のマスの状態を考慮しない移動可能なマス
             movable_point = []              # 盤面のサイズや移動先のマスの状態を考慮した移動可能なマス            
             if piece.owner == turn_:
                 if piece.is_hold == True:      # 持ち駒
                     if piece.name == "hu" or piece.name == "kyo":
                         div = 1
-                    elif piece.name() == "kei":
+                    elif piece.name == "kei":
                         div = 2
                     else:
                         div = 0
@@ -220,13 +206,13 @@ class ShogiGame():
                             reachable_point.append([x, y])
                     
                     for p in reachable_point:
-                        if self.square_state(piece_all_, p) == -1:
+                        if self.get_square_state(piece_all_, p) == -1:
                             movable_point.append(p)
         
                 else:                       # 盤面上の駒
                     if piece.name == "hu":
                         reachable_point.append(rel_point(piece, "h", 1))
-                    
+
                     elif piece.name == "kyo":
                         dist = 1
                         while True:
@@ -251,7 +237,7 @@ class ShogiGame():
                     elif piece.name == "gin":
                         reachable_point.append(rel_point(piece, "h", 1))
                         reachable_point.append(rel_point(piece, "rh", 1))
-                        reachable_point.append(rel_point(piece, "lf", 1))
+                        reachable_point.append(rel_point(piece, "lh", 1))
                         reachable_point.append(rel_point(piece, "rt", 1))
                         reachable_point.append(rel_point(piece, "lt", 1))
                     
@@ -319,22 +305,21 @@ class ShogiGame():
                             
                     for p in reachable_point:
                         state = self.get_square_state(piece_all_, p)
-                        if state == -1 or state == (not(piece.owner)):
+                        if (state == -1) or (state == (not piece.owner)):
                             movable_point.append(p)
         
-            piece.movable_point = movable_point
+            piece_all_[i].movable_point = movable_point
         return piece_all_
                  
     def remove_prohibited_move(self, piece_all_, turn_):
         # 王手放置を除去
-        possession_dummy = copy.copy(self.possession_piece_true)
         for piece in piece_all_:
             movable_point_consider_check = []
             for point_after in piece.movable_point:
                 piece_all_after = copy.deepcopy(piece_all_)
                 index_before = piece_all_.index(piece)
-                piece_all_after, _ = self.move_piece(piece_all_after, index_before, point_after, False, possession_dummy)
-                if self.is_check(piece_all_after, not(turn_)) == False:
+                piece_all_after = self.move_piece(piece_all_after, index_before, point_after, False)
+                if self.is_check(piece_all_after, turn_) == False:
                     movable_point_consider_check.append(point_after)
             piece.movable_point = movable_point_consider_check
         
@@ -356,34 +341,33 @@ class ShogiGame():
         return piece_all_
         
     def is_check(self, piece_all_, turn_):
+        turn = not turn_
         for piece in piece_all_:
-            if piece.name in ["ou", "gyoku"] and piece.owner == turn_:
+            if (piece.name in ["ou", "gyoku"]) and (piece.owner == (not turn)):
                 point_king = piece.point
                 break
-        
-        piece_all_ = self.get_movable_point(piece_all_, turn_)
+
+        piece_all_ = self.get_movable_point(piece_all_, turn)
         for piece in piece_all_:
             for point_after in piece.movable_point:
                 if point_after == point_king:
                     return True
         return False
         
-    def move_piece(self, piece_all_, index_move_, point_after_, is_promote_, possession_piece_):
-        # 駒の移動と成り
-        if piece_all_[index_move_].is_hold == True:
-            possession_piece_[piece_all_[index_move_].name] -= 1
-        piece_all_[index_move_].move(point_after_)
-        if is_promote_ == True:
-            piece_all_[index_move_].promote()
-        
-        
-        # 駒の取得
+    def move_piece(self, piece_all_, index_move_, point_after_, is_promote_):
+        # 駒の取得        
         if self.get_square_state(piece_all_, point_after_) == (not piece_all_[index_move_].owner):
             index_captured = self.get_piece_index(piece_all_, point_after_)
             piece_all_[index_captured].captured()
-            possession_piece_[piece_all_[index_captured].name] += 1
+            piece_all_ = self.assign_possession_pieces(piece_all_)
         
-        return piece_all_, possession_piece_
+        # 駒の移動と成り
+        piece_all_[index_move_].move(point_after_)
+        if is_promote_ == True:
+            piece_all_[index_move_].promote()
+        piece_all_[index_move_].hold = False
+        
+        return piece_all_
 
     def check_is_able_promote(self, turn_, name_, point_before_, point_after_):
         # 成る条件を満たしていない場合-1を返す
@@ -440,18 +424,47 @@ class ShogiGame():
         
         
         return kihu
+
+    def assign_possession_pieces(self, piece_all_):
+        possession_piece_name = ["hu", "kyo", "kei", "gin", "kin", "hisya", "kaku"]
+        count_true = 0
+        count_false = 0
+               
+        for piece_name in possession_piece_name:
+            flag_true = False
+            flag_false = False
+            
+            for i in range(len(piece_all_)):
+                if (piece_all_[i].name == piece_name) and (piece_all_[i].is_hold == True):
+                    if piece_all_[i].owner == True:
+                        flag_true = True
+                        piece_all_[i].point = [count_true, 10]
+                    elif piece_all_[i].owner == False:
+                        flag_false = True
+                        piece_all_[i].point = [count_false, 0]                        
+              
+            count_true += flag_true
+            count_false += flag_false
+            
+        
+        return piece_all_
+        
         
 def main():
     game = ShogiGame()
+    print(game.get_square_state(game.piece_all, [4, 0]))
+    
+    
     # game.proceed_turn([7,7], [7,6], False)
     # game.proceed_turn([3,3], [3,4], False)
     # game.proceed_turn([8,8], [2,2], True)
     # for piece in game.piece_all:
     #     piece.status()
     #     print("---------------------------------")
-    index = game.get_piece_index(game.piece_all, [7, 7])
-    kihu = game.convert_move_to_kihu(game.piece_all, index, [7, 6], False)
-    print(kihu)
+    
+    # index = game.get_piece_index(game.piece_all, [7, 7])
+    # kihu = game.convert_move_to_kihu(game.piece_all, index, [7, 6], False)
+    # print(kihu)
     
         
         
