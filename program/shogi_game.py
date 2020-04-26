@@ -5,7 +5,6 @@ import datetime
 import sys
 
 class PieceName(enum.Enum):
-    ou = "玉"
     gyoku = "玉"
     hisya = "飛"
     ryu = "竜"
@@ -195,7 +194,7 @@ class ShogiGame():
         piece_all.append(Piece("hisya", [8,2], False))
         piece_all.append(Piece("kaku", [2,2], False))
 
-        piece_all.append(Piece("ou", [5,9], True))
+        piece_all.append(Piece("gyoku", [5,9], True))
         piece_all.append(Piece("hu", [1,7], True))
         piece_all.append(Piece("hu", [2,7], True))
         piece_all.append(Piece("hu", [3,7], True))
@@ -219,28 +218,28 @@ class ShogiGame():
         piece_all = self.get_movable_point(piece_all, turn_)            
         return piece_all
 
-    def get_movable_point(self, piece_all_, turn_):
-        def rel_point(piece_, direction_, distance_):
-            ##direction_
-            ## lh h rh
-            ## l  p r
-            ## lt t rt
-            if "r" in direction_:
-                x = piece.point[0] - int((piece.owner - 0.5) * 2) * distance_
-            elif "l" in direction_:
-                x = piece.point[0] + int((piece.owner - 0.5) * 2) * distance_
-            else:
-                x = piece.point[0]
-                
-            if "h" in direction_:
-                y = piece.point[1] - int((piece.owner - 0.5) * 2) * distance_
-            elif "t" in direction_:
-                y = piece.point[1] + int((piece.owner - 0.5) * 2) * distance_
-            else:
-                y = piece.point[1]
-                
-            return [x, y]
-                    
+    def get_rel_point(self, piece_, direction_, distance_):
+        ##direction_
+        ## lh h rh
+        ## l  p r
+        ## lt t rt
+        if "r" in direction_:
+            x = piece_.point[0] - int((piece_.owner - 0.5) * 2) * distance_
+        elif "l" in direction_:
+            x = piece_.point[0] + int((piece_.owner - 0.5) * 2) * distance_
+        else:
+            x = piece_.point[0]
+            
+        if "h" in direction_:
+            y = piece_.point[1] - int((piece_.owner - 0.5) * 2) * distance_
+        elif "t" in direction_:
+            y = piece_.point[1] + int((piece_.owner - 0.5) * 2) * distance_
+        else:
+            y = piece_.point[1]
+            
+        return [x, y]
+
+    def get_movable_point(self, piece_all_, turn_):                   
         for i in range(len(piece_all_)):
             piece = piece_all_[i]
             reachable_point = []            # 盤面のサイズや移動先のマスの状態を考慮しない移動可能なマス
@@ -269,12 +268,12 @@ class ShogiGame():
         
                 else:                       # 盤面上の駒
                     if piece.name == "hu":
-                        reachable_point.append(rel_point(piece, "h", 1))
+                        reachable_point.append(self.get_rel_point(piece, "h", 1))
 
                     elif piece.name == "kyo":
                         dist = 1
                         while True:
-                            add_point = rel_point(piece, "h", dist)
+                            add_point = self.get_rel_point(piece, "h", dist)
                             state = self.get_square_state(piece_all_, add_point)
                             if state == -1:
                                 reachable_point.append(add_point)
@@ -286,49 +285,49 @@ class ShogiGame():
                                 break                              
                     
                     elif piece.name == "kei":
-                        y = rel_point(piece, "h", 2)[1]
+                        y = self.get_rel_point(piece, "h", 2)[1]
                         x = piece.point[0] - 1
                         reachable_point.append([x, y])
                         x = piece.point[0] + 1
                         reachable_point.append([x, y])
                         
                     elif piece.name == "gin":
-                        reachable_point.append(rel_point(piece, "h", 1))
-                        reachable_point.append(rel_point(piece, "rh", 1))
-                        reachable_point.append(rel_point(piece, "lh", 1))
-                        reachable_point.append(rel_point(piece, "rt", 1))
-                        reachable_point.append(rel_point(piece, "lt", 1))
+                        reachable_point.append(self.get_rel_point(piece, "h", 1))
+                        reachable_point.append(self.get_rel_point(piece, "rh", 1))
+                        reachable_point.append(self.get_rel_point(piece, "lh", 1))
+                        reachable_point.append(self.get_rel_point(piece, "rt", 1))
+                        reachable_point.append(self.get_rel_point(piece, "lt", 1))
                     
                     elif piece.name in ["kin", "narikyo", "narikei", "narigin", "to"]:
-                        reachable_point.append(rel_point(piece, "h", 1))
-                        reachable_point.append(rel_point(piece, "rh", 1))
-                        reachable_point.append(rel_point(piece, "lh", 1))
-                        reachable_point.append(rel_point(piece, "r", 1))
-                        reachable_point.append(rel_point(piece, "l", 1))
-                        reachable_point.append(rel_point(piece, "t", 1))
+                        reachable_point.append(self.get_rel_point(piece, "h", 1))
+                        reachable_point.append(self.get_rel_point(piece, "rh", 1))
+                        reachable_point.append(self.get_rel_point(piece, "lh", 1))
+                        reachable_point.append(self.get_rel_point(piece, "r", 1))
+                        reachable_point.append(self.get_rel_point(piece, "l", 1))
+                        reachable_point.append(self.get_rel_point(piece, "t", 1))
                         
-                    elif piece.name in ["ou", "gyoku"]:
-                        reachable_point.append(rel_point(piece, "h", 1))
-                        reachable_point.append(rel_point(piece, "rh", 1))
-                        reachable_point.append(rel_point(piece, "lh", 1))
-                        reachable_point.append(rel_point(piece, "r", 1))
-                        reachable_point.append(rel_point(piece, "l", 1))
-                        reachable_point.append(rel_point(piece, "t", 1))
-                        reachable_point.append(rel_point(piece, "rt", 1))
-                        reachable_point.append(rel_point(piece, "lt", 1))
+                    elif piece.name == "gyoku":
+                        reachable_point.append(self.get_rel_point(piece, "h", 1))
+                        reachable_point.append(self.get_rel_point(piece, "rh", 1))
+                        reachable_point.append(self.get_rel_point(piece, "lh", 1))
+                        reachable_point.append(self.get_rel_point(piece, "r", 1))
+                        reachable_point.append(self.get_rel_point(piece, "l", 1))
+                        reachable_point.append(self.get_rel_point(piece, "t", 1))
+                        reachable_point.append(self.get_rel_point(piece, "rt", 1))
+                        reachable_point.append(self.get_rel_point(piece, "lt", 1))
                         
                     elif piece.name in ["hisya", "ryu"]:
                         if piece.name == "ryu":
-                            reachable_point.append(rel_point(piece, "rh", 1))
-                            reachable_point.append(rel_point(piece, "lh", 1))
-                            reachable_point.append(rel_point(piece, "rt", 1))
-                            reachable_point.append(rel_point(piece, "lt", 1))
+                            reachable_point.append(self.get_rel_point(piece, "rh", 1))
+                            reachable_point.append(self.get_rel_point(piece, "lh", 1))
+                            reachable_point.append(self.get_rel_point(piece, "rt", 1))
+                            reachable_point.append(self.get_rel_point(piece, "lt", 1))
                         
                         directions = ["h", "t", "r", "l"]
-                        for d in directions:
+                        for direc in directions:
                             dist = 1
                             while True:
-                                add_point = rel_point(piece, d, dist)
+                                add_point = self.get_rel_point(piece, direc, dist)
                                 state = self.get_square_state(piece_all_, add_point)
                                 if state == -1:
                                     reachable_point.append(add_point)
@@ -341,16 +340,16 @@ class ShogiGame():
 
                     elif piece.name in ["kaku", "uma"]:
                         if piece.name == "uma":
-                            reachable_point.append(rel_point(piece, "h", 1))
-                            reachable_point.append(rel_point(piece, "t", 1))
-                            reachable_point.append(rel_point(piece, "r", 1))
-                            reachable_point.append(rel_point(piece, "l", 1))
+                            reachable_point.append(self.get_rel_point(piece, "h", 1))
+                            reachable_point.append(self.get_rel_point(piece, "t", 1))
+                            reachable_point.append(self.get_rel_point(piece, "r", 1))
+                            reachable_point.append(self.get_rel_point(piece, "l", 1))
                         
                         directions = ["rh", "lh", "rt", "lt"]
-                        for d in directions:
+                        for direc in directions:
                             dist = 1
                             while True:
-                                add_point = rel_point(piece, d, dist)
+                                add_point = self.get_rel_point(piece, direc, dist)
                                 state = self.get_square_state(piece_all_, add_point)
                                 if state == -1:
                                     reachable_point.append(add_point)
@@ -400,7 +399,7 @@ class ShogiGame():
     def is_check(self, piece_all_, turn_):
         turn = not turn_
         for piece in piece_all_:
-            if (piece.name in ["ou", "gyoku"]) and (piece.owner == (not turn)):
+            if (piece.name == "gyoku") and (piece.owner == (not turn)):
                 point_king = piece.point
                 break
 
@@ -496,30 +495,107 @@ class ShogiGame():
         
         return piece_all_
 
-    def convert_kifu_to_move(self, kifu):
-        if kifu[0] == "同":
+    def convert_kifu_move_to_move(self, kifu_move):
+        if kifu_move[0] == "同":
             point_after = self.move_all[-1].point_after
-            kifu = kifu[1:]
+            kifu_move = kifu_move[1:]
         else:
-            point_after = [int(kifu[0]), int(kifu[1])]
-            kifu = kifu[2:]
+            point_after = [int(kifu_move[0]), int(kifu_move[1])]
+            kifu_move = kifu_move[2:]
         if self.sente == False:
             point_after = [10 - i for i in point_after]
-        name = PieceName(kifu[0]).name
-        kifu = kifu[1:]
+        name = PieceName(kifu_move[0]).name
+        kifu_move = kifu_move[1:]
         is_promote = False
-        if len(kifu) >= 1:
-            if kifu[-1] == "成":
+        if len(kifu_move) >= 1:
+            if kifu_move[-2:] == "不成":
+                print(11211)
+                kifu_move = kifu_move[:-2]
+            elif kifu_move[-1] == "成":
                 is_promote = True
-                kifu = kifu[:-1]
+                kifu_move = kifu_move[:-1]
+        if len(kifu_move) >= 1:
+            pass
         
         move_candidate_index = []        
         for i in range(len(self.piece_all)):
             if (self.piece_all[i].name == name) and (point_after in self.piece_all[i].movable_point):
                 move_candidate_index.append(i)
-        if len(move_candidate_index) == 1:
-            point_before = self.piece_all[i].point
+                
+        if len(move_candidate_index) == 0:
+            print("無効な移動です")
+            return -1
+        
+        elif len(move_candidate_index) == 1:
+            index = move_candidate_index[0]
+            point_before = self.piece_all[index].point
             
+        else:
+            if "打" in kifu_move:
+                for i in move_candidate_index:
+                    if self.piece_all[i].is_hold == True:
+                        point_before = self.piece_all[i].point
+                        break
+            else:
+                if name == "kei":
+                    for i in move_candidate_index:
+                        directions = ["r", "l"]
+                        for direc in directions:
+                            rel_point = self.get_rel_point(self.piece_all[i], direc, 1)
+                            if rel_point[0] == point_after[0]:
+                                point_before = self.piece_all[i].point
+                                break
+                
+                else:
+                    directions = ["h", "rh", "lh", "r", "l", "t", "rt", "lt"]
+                    candidate_directions = []
+
+                    for i in move_candidate_index:
+                        dist = 1
+                        flag_end = False
+                        while flag_end == False:
+                            for direc in directions:
+                                rel_point = self.get_rel_point(self.piece_all[i], direc, dist)
+                                if rel_point == point_after:
+                                    candidate_directions.append(direc)
+                                    flag_end = True
+                                    break
+                            dist += 1
+                            
+                    if "右" in kifu_move:
+                        for i in range(len(candidate_directions)):
+                            if "l" not in candidate_directions[i]:
+                                candidate_directions[i] = ""                    
+                    elif "左" in kifu_move:
+                        for i in range(len(candidate_directions)):
+                            if "r" not in candidate_directions[i]:
+                                candidate_directions[i] = ""
+                    
+                    if "直" in kifu_move:
+                        for i in range(len(candidate_directions)):
+                            if candidate_directions[i] != "h":
+                                candidate_directions[i] = ""
+                    elif "上" in kifu_move:
+                        for i in range(len(candidate_directions)):
+                            if "h" not in candidate_directions[i]:
+                                candidate_directions[i] = "" 
+                    elif "引" in kifu_move:
+                        for i in range(len(candidate_directions)):
+                            if "t" not in candidate_directions[i]:
+                                candidate_directions[i] = ""                       
+                    elif "寄" in kifu_move:
+                        for i in range(len(candidate_directions)):
+                            if ("r" not in candidate_directions[i]) and ("l" not in candidate_directions[i]):
+                                candidate_directions[i] = ""
+                    
+                    if candidate_directions.count("") != len(candidate_directions) -1:
+                        print("指し手が一意に定まりません")
+                        return -1
+                    else:
+                        tmp = [i for i, x in enumerate(candidate_directions) if x != ""][0]
+                        index = move_candidate_index[tmp]
+                        point_before = self.piece_all[index].point
+                        
         self.proceed_turn(point_before, point_after, is_promote)
             
             
@@ -541,22 +617,9 @@ class ShogiGame():
                 f.write(row + "\n")
                 previous_point_after = move.point_after
             f.write("詰み")
-            
-        
+                    
 def main():
     game = ShogiGame()
-    kifu_tmp = "76歩"
-    
-    game.convert_kifu_to_move(kifu_tmp)
-    
-    # game.proceed_turn([7,7], [7,6], False)
-    # game.proceed_turn([3,3], [3,4], False)
-    # game.proceed_turn([8,8], [2,2], True)
-    
-    # game.save_kifu()
-    
-    
-        
-        
+
 if __name__ == "__main__":
     main()

@@ -8,7 +8,7 @@ import sys
 import copy
 
 class ShogiGUI():
-    def __init__(self, screen_size_ = 300):
+    def __init__(self, screen_size_ = [500, 500]):
         # スクリーンサイズの0.7倍の大きさを盤の大きさとする
         self.SCREEN_SIZE = screen_size_
         board_size_rate = [3330, 3640]
@@ -174,9 +174,9 @@ class ShogiGUI():
         
         # 画像の読み込み
         piece_name = ["hu", "to", "kyo", "narikyo", "kei", "narikei", "gin", "narigin", "kin",
-                      "hisya", "ryu", "kaku", "uma", "ou", "gyoku"]
+                      "hisya", "ryu", "kaku", "uma", "gyoku"]
         for name in piece_name:
-            img = pygame.image.load("../piece/piece_" + name + ".png")
+            img = pygame.image.load("../image/piece/piece_" + name + ".png")
             img_rect = img.get_rect()
             img = pygame.transform.scale(img, (int(img_rect[2] * self.PIECE_SCALE), int(img_rect[3] * self.PIECE_SCALE)))
             self.img_pieces[name] = img
@@ -284,12 +284,24 @@ class ShogiGUI():
         top = int(self.rect_not_promote.centery -  rect_img_not_promote.height / 2)
         self.screen.blit(img_not_promote, (left, top))
 
+class GUI_kifu(ShogiGUI):
+    def __init__(self, screen_size_ = [500, 500]):
+        super().__init__(screen_size_)
+        self.draw()
+        
+    def draw(self):
+        piece_all = copy.deepcopy(self.game.piece_all)
+        self.screen.fill((self.COLOR_BG[0], self.COLOR_BG[1], self.COLOR_BG[2]))
+        self.draw_board()
+        self.draw_all_piece(piece_all)
+        pygame.display.update()
+    
+    def move(self, kifu_move):
+        self.game.convert_kifu_move_to_move(kifu_move)
+        self.draw()
+        
 def main():
     shogi_GUI = ShogiGUI(screen_size_ = [1000, 1000])
-    shogi_GUI.main_loop()
-    
-    
-    
 
 if __name__ == "__main__":
     main()        
