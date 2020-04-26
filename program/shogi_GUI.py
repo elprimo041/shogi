@@ -8,12 +8,12 @@ import sys
 import copy
 
 class ShogiGUI():
-    def __init__(self, screen_size_ = [500, 500]):
-        # スクリーンサイズの0.7倍の大きさを盤の大きさとする
-        self.SCREEN_SIZE = screen_size_
+    def __init__(self, screen_size_ = 800):
+        # スクリーンサイズの縦幅の0.75倍の大きさを盤の大きさとする
+        self.SCREEN_SIZE = [int(screen_size_ * 4 / 3), screen_size_]
         board_size_rate = [3330, 3640]
         square_size_rate = [352, 386]
-        scaling_rate = board_size_rate[0] / (self.SCREEN_SIZE[0] * 0.7)
+        scaling_rate = board_size_rate[1] / (self.SCREEN_SIZE[1] * 0.75)
         self.BOARD_SIZE = [int(d / scaling_rate) for d in board_size_rate]
         self.SQUARE_SIZE = [int(d / scaling_rate) for d in square_size_rate]
         
@@ -24,15 +24,15 @@ class ShogiGUI():
         
         # マス目に対する駒の大きさの割合を指定し、画像を読み込んで画像のサイズからマス目の大きさを決定
         self.PIECE_RATE = 0.9        
-        image = pygame.image.load("../piece/piece_ou.png")
+        image = pygame.image.load("../image/piece/piece_gyoku.png")
         rect = image.get_rect()
-        width = rect[2]
+        width = rect.w
         self.PIECE_SCALE = self.SQUARE_SIZE[0] * self.PIECE_RATE / width
         
         self.COLOR_BG = [40, 50, 80]
         self.COLOR_BORD = [139, 69, 19]        
         self.COLOR_LINE = (0, 0, 0)
-        self.WIDTH_LINE = int(self.BOARD_SIZE[0] / 250)
+        self.WIDTH_LINE = int(self.BOARD_SIZE[0] / 400)
         
         
         pygame.init()                                                                                                       
@@ -40,10 +40,13 @@ class ShogiGUI():
         pygame.display.set_caption("Shogi")
         
         self.rect_squares = []              # 盤のマスを表すrectの配列
-        self.rect_bg = 0                    # 背景のrect
+        self.rect_bg = None                 # 背景のrect
         self.img_pieces = {}                # 駒の画像を表すimgの辞書
-        self.rect_promote = 0
-        self.rect_not_promote = 0
+        self.img_other = {}
+        self.rect_promote = None
+        self.rect_not_promote = None
+        self.rect_surrender = None
+        self.rect_redo = None
         self.initialize_bord()
 
         self.game = shogi_game.ShogiGame()
@@ -56,14 +59,20 @@ class ShogiGUI():
         is_promote = False
         flag_confirm_promote = False
         flag_move = False
+        root = tk.Tk()
+        root.withdraw()
         
         while True:
-            self.screen.fill((self.COLOR_BG[0], self.COLOR_BG[1], self.COLOR_BG[2]))
+            self.screen.blit(self.img_other["bg"], (0, 0))
             self.draw_board()
-            self.draw_all_piece(piece_all)
+            self.draw_button()
+            
             
             if piece_select != None:
                 self.draw_emphasis_square(piece_select)
+            
+            self.draw_all_piece(piece_all)    
+            
             if flag_confirm_promote == True:
                 self.draw_is_promote(piece_select.name, point_after)
             
@@ -72,13 +81,26 @@ class ShogiGUI():
                     pygame.quit()                                                                
                     sys.exit()
                 
-                if event.type == KEYDOWN and event.key == K_x:
-                    for piece in piece_all:
-                        piece.status()
-                        print("--------------------------")
+                # デバック用
+                # if event.type == KEYDOWN and event.key == K_x:
+                #     for piece in piece_all:
+                #         piece.status()
+                #         print("--------------------------")
                         
                 if (event.type == pygame.MOUSEBUTTONDOWN) and (event.button == 1):
-                    if piece_select == None:                # 何も選択していない状態        
+                    if self.rect_surrender.collidepoint(event.pos):
+                        ret = messagebox.askyesno("確認", "投了しますか？")
+                        if ret == True:
+                            self.game.end_game()
+                        
+                    elif self.rect_redo.collidepoint(event.pos):
+                        self.game.redo()
+                        piece_all = copy.deepcopy(self.game.piece_all)
+                        self.screen.blit(self.img_other["bg"], (0, 0))
+                        self.draw_board()
+                        self.draw_all_piece(piece_all)
+                    
+                    elif piece_select == None:                # 何も選択していない状態        
                         for y in range(len(self.rect_squares)):
                             for x in range(len(self.rect_squares[y])):
                                 if self.rect_squares[y][x].collidepoint(event.pos):
@@ -131,15 +153,21 @@ class ShogiGUI():
                         
             
             pygame.display.update()        
-            if self.game.is_checkmate == True:
-                piece_all_GUI = copy.deepcopy(self.game.piece_all)
-                self.screen.fill((self.COLOR_BG[0], self.COLOR_BG[1], self.COLOR_BG[2]))
+            if self.game.is_end == True:
+                piece_all = copy.deepcopy(self.game.piece_all)
+                self.screen.blit(self.img_other["bg"], (0, 0))
                 self.draw_board()
-                self.draw_all_piece(piece_all_GUI)
+                self.draw_all_piece(piece_all)
                 pygame.display.update()
-                root = tk.Tk()
-                root.withdraw()
-                msg = self.game.winner + "の勝ちです"
+                if self.game.foul == True:
+                    if self.game.winner == "先手":
+                        msg = "後手反則負け\n" + self.game.foul_msg
+                    else:
+                        msg = "先手反則負け\n" + self.game.foul_msg                
+                elif self.game.is_repetition_of_moves == True:
+                    msg = "千日手です"
+                else:
+                    msg = "まで、{}手で{}の勝ちです".format(self.game.turn_num - 1, self.game.winner)
                 _ = messagebox.showinfo(title = "対局終了", message = msg)
                 pygame.quit()                                                                
                 sys.exit()
@@ -180,13 +208,50 @@ class ShogiGUI():
             img_rect = img.get_rect()
             img = pygame.transform.scale(img, (int(img_rect[2] * self.PIECE_SCALE), int(img_rect[3] * self.PIECE_SCALE)))
             self.img_pieces[name] = img
+            
+        img = pygame.image.load("../image/board.png")
+        img = pygame.transform.scale(img, (self.BOARD_SIZE[0], self.BOARD_SIZE[1]))
+        self.img_other["board"] = img
+        
+        img = pygame.image.load("../image/bg.png")
+        img = pygame.transform.scale(img, (self.SCREEN_SIZE[0], self.SCREEN_SIZE[1]))
+        self.img_other["bg"] = img
+        
+        img = pygame.image.load("../image/surrender.png")
+        img = pygame.transform.scale(img, (self.SQUARE_SIZE[0]*2, self.SQUARE_SIZE[0]))
+        self.img_other["surrender"] = img
+        img_rect = img.get_rect()
+        left = int(self.SCREEN_SIZE[0] - img_rect.w * 1.5)
+        top = int(img_rect.h * 0.5)
+        self.rect_surrender = pygame.Rect(left, top, img_rect.w, img_rect.h)      
+        
+        img = pygame.image.load("../image/redo.png")
+        img = pygame.transform.scale(img, (self.SQUARE_SIZE[0]*2, self.SQUARE_SIZE[0]))
+        self.img_other["redo"] = img
+        top = int(img_rect.h * 1.8)
+        self.rect_redo = pygame.Rect(left, top, img_rect.w, img_rect.h)
+        
+        img = pygame.image.load("../image/emphasis_current.png").convert_alpha(self.screen)
+        img = pygame.transform.scale(img, (int(self.SQUARE_SIZE[0] * 0.9), int(self.SQUARE_SIZE[1] * 0.9)))
+        self.img_other["emphasis_current"] = img      
+
+        img = pygame.image.load("../image/emphasis_movable.png").convert_alpha(self.screen)
+        img = pygame.transform.scale(img, (int(self.SQUARE_SIZE[0] * 0.9), int(self.SQUARE_SIZE[1] * 0.9)))
+        self.img_other["emphasis_movable"] = img
 
     def draw_board(self):
-        pygame.draw.rect(self.screen, self.COLOR_BORD, self.rect_bg)
+        self.screen.blit(self.img_other["board"], (self.rect_bg.left, self.rect_bg.top))
         for i in range(len(self.rect_squares)):
             for j in range(len(self.rect_squares[i])):
                 if i != 0 and i != 10 and j != 0:
                     pygame.draw.rect(self.screen, self.COLOR_LINE, self.rect_squares[i][j], self.WIDTH_LINE)
+
+    def draw_button(self):
+        left = self.rect_surrender.left
+        top = self.rect_surrender.top
+        self.screen.blit(self.img_other["surrender"], (left, top))
+        top = self.rect_redo.top
+        self.screen.blit(self.img_other["redo"], (left, top))
 
     def draw_all_piece(self, piece_all_):
         possession_piece_name = ["hu", "kyo", "kei", "gin", "kin", "hisya", "kaku"]
@@ -238,16 +303,18 @@ class ShogiGUI():
             self.screen.blit(text, [left, top])
 
     def draw_emphasis_square(self, piece):
-        color_current = [255, 255, 0]
-        color_movable = [239, 69, 74]
         rect_current = self.rect_squares[piece.point[1]][piece.point[0]]
-        rect_current_emphasis = rect_current.inflate(-self.WIDTH_LINE * 2, -self.WIDTH_LINE * 2)
-        pygame.draw.rect(self.screen, color_current, rect_current_emphasis, int(self.WIDTH_LINE * 1.5))
-    
+        img = self.img_other["emphasis_current"]
+        left = rect_current.left - int(-self.SQUARE_SIZE[0] * 0.05)
+        top = rect_current.top - int(-self.SQUARE_SIZE[1] * 0.05)
+        self.screen.blit(img, (left, top))
+        
+        img = self.img_other["emphasis_movable"]
         for point in piece.movable_point:
             rect_movable = self.rect_squares[point[1]][point[0]]
-            rect_movable_emphasis = rect_movable.inflate(-self.WIDTH_LINE * 4, -self.WIDTH_LINE * 4)
-            pygame.draw.rect(self.screen, color_movable, rect_movable_emphasis, int(self.WIDTH_LINE * 1.5))
+            left = rect_movable.left - int(-self.SQUARE_SIZE[0] * 0.05)
+            top = rect_movable.top - int(-self.SQUARE_SIZE[1] * 0.05)
+            self.screen.blit(img, (left, top))
 
     def draw_is_promote(self, name_, point_):
         is_promote_rect_scale = 0.2
@@ -285,13 +352,13 @@ class ShogiGUI():
         self.screen.blit(img_not_promote, (left, top))
 
 class GUI_kifu(ShogiGUI):
-    def __init__(self, screen_size_ = [500, 500]):
+    def __init__(self, screen_size_ = 800):
         super().__init__(screen_size_)
         self.draw()
         
     def draw(self):
         piece_all = copy.deepcopy(self.game.piece_all)
-        self.screen.fill((self.COLOR_BG[0], self.COLOR_BG[1], self.COLOR_BG[2]))
+        self.screen.blit(self.img_other["bg"], (0, 0))
         self.draw_board()
         self.draw_all_piece(piece_all)
         pygame.display.update()
@@ -300,8 +367,15 @@ class GUI_kifu(ShogiGUI):
         self.game.convert_kifu_move_to_move(kifu_move)
         self.draw()
         
+    def surrender(self):
+        self.game.end_game()
+    
+    def redo(self):
+        self.game.redo()
+        
 def main():
-    shogi_GUI = ShogiGUI(screen_size_ = [1000, 1000])
+    shogi_GUI = ShogiGUI(screen_size_ = 800)
+    shogi_GUI.main_loop()
 
 if __name__ == "__main__":
     main()        

@@ -2,7 +2,6 @@
 import copy
 import enum
 import datetime
-import sys
 
 class PieceName(enum.Enum):
     gyoku = "玉"
@@ -36,7 +35,6 @@ class PieceID(enum.IntEnum):
     narikyo = -7
     hu = 8
     to = -8
-
 
 class Piece():
     def __init__(self, name_, point_, owner_, is_promote_ = False, is_hold_ = False):
@@ -124,13 +122,18 @@ class ShogiGame():
     def __init__(self, sente_ = True, kifu_name_ = ""):
         self.sente = sente_
         self.turn = sente_
+        self.is_end = False
         self.is_checkmate = False
+        self.is_repetition_of_moves = False
+        self.foul = False
+        self.foul_msg = ""
         self.winner = ""
         self.move_all = []
         self.kifu_name = kifu_name_
         self.turn_num = 1
         self.start_time = datetime.datetime.today()
         self.piece_all = self.initialize_piece(sente_)
+        self.piece_all_history = [copy.deepcopy(self.piece_all)]
 
     def proceed_turn(self, point_before_, point_after_, is_promote_):
         piece_all_tmp = copy.deepcopy(self.piece_all)
@@ -149,6 +152,7 @@ class ShogiGame():
         piece_all_tmp = self.get_movable_point(piece_all_tmp, self.turn)
         piece_all_tmp = self.remove_prohibited_move(piece_all_tmp, copy.copy(self.turn))
         self.piece_all = copy.deepcopy(piece_all_tmp)
+        self.piece_all_history.append(copy.deepcopy(piece_all_tmp))
         
         # if self.is_check(piece_all_tmp, copy.copy(self.turn)) == True:
         #     print("王手")
@@ -160,16 +164,13 @@ class ShogiGame():
                 is_checkmate = False
                 break
         if is_checkmate == True:
-            self.save_kifu()
             self.is_checkmate = True
-            if (self.sente == True) and (self.turn == True):
-                self.winner = "後手(False)"
-            elif (self.sente == True) and (self.turn == False):
-                self.winner = "先手(True)"
-            elif (self.sente == False) and (self.turn == True):
-                self.winner = "先手(False)"
-            elif (self.sente == False) and (self.turn == False):
-                self.winner = "後手(True)"
+            self.end_game()
+            
+        # 千日手の判定
+        self.check_repetition_of_moves()
+        if self.is_repetition_of_moves == True:
+            self.end_game()
         
     def initialize_piece(self, turn_):
         piece_all = []
@@ -215,9 +216,44 @@ class ShogiGame():
         piece_all.append(Piece("hisya", [2,8], True))
         piece_all.append(Piece("kaku", [8,8], True))
 
-        piece_all = self.get_movable_point(piece_all, turn_)            
+        piece_all = self.get_movable_point(piece_all, turn_)          
         return piece_all
 
+    def end_game(self):
+        self.is_end = True
+        if self.is_repetition_of_moves == True:
+            if self.is_check(copy.deepcopy(self.piece_all), copy.copy(self.turn)) == True:
+                self.foul = True
+                self.foul_msg = "連続王手の千日手"
+                if (self.sente == True) and (self.turn == True):
+                    self.winner = "先手"
+                elif (self.sente == True) and (self.turn == False):
+                    self.winner = "後手"
+                elif (self.sente == False) and (self.turn == True):
+                    self.winner = "後手"
+                elif (self.sente == False) and (self.turn == False):
+                    self.winner = "先手"
+        
+        else:
+            if (self.sente == True) and (self.turn == True):
+                self.winner = "後手"
+            elif (self.sente == True) and (self.turn == False):
+                self.winner = "先手"
+            elif (self.sente == False) and (self.turn == True):
+                self.winner = "先手"
+            elif (self.sente == False) and (self.turn == False):
+                self.winner = "後手"
+        self.save_kifu()
+
+    def redo(self):
+        if self.turn_num == 1:
+            return -1
+        self.turn = not self.turn
+        self.turn_num -= 1
+        self.move_all = self.move_all[:-1]
+        self.piece_all = self.piece_all_history[-2]
+        self.piece_all_history = self.piece_all_history[:-1]           
+                
     def get_rel_point(self, piece_, direction_, distance_):
         ##direction_
         ## lh h rh
@@ -395,7 +431,50 @@ class ShogiGame():
             piece.movable_point = movable_point_consider_nihu
             
         return piece_all_
+    
+    def check_repetition_of_moves(self):
+        def get_board(piece_all_):
+            board = [[""] * 9 for i in range(9)]
+            for piece in piece_all_:
+                if piece.is_hold != True:
+                    x = piece.point[0] - 1
+                    y = piece.point[1] - 1
+                    name = piece.name
+                    if piece.owner == False:
+                        name += "-"
+                    board[y][x] = name
+            return board        
         
+        def get_possession(piece_all_):
+            possession_true = {}
+            possession_false = {}
+            possession_names = ["hu", "kyo", "kei", "gin", "kin", "kaku", "hisya"]
+            for name in possession_names:
+                possession_true[name] = 0
+                possession_false[name] = 0
+            for piece in piece_all_:
+                if (piece.is_hold == True) and (piece.owner == True):
+                    possession_true[piece.name] += 1
+                elif (piece.is_hold == True) and (piece.owner == False):
+                    possession_false[piece.name] += 1
+            return possession_true, possession_false
+        
+        turn = False        
+        board_now = get_board(self.piece_all)
+        possession_true_now, _ = get_possession(self.piece_all)
+        count = 0
+        for piece_all_past in self.piece_all_history[:-1][::-1]:
+            if turn == True:                
+                board_past = get_board(piece_all_past)
+                if board_now == board_past:
+                    possession_true_past, _ = get_possession(piece_all_past)
+                    if possession_true_now == possession_true_past:
+                        count += 1
+            turn = not turn
+        if count >= 4:
+            self.is_repetition_of_moves = True
+        
+    
     def is_check(self, piece_all_, turn_):
         turn = not turn_
         for piece in piece_all_:
@@ -491,8 +570,6 @@ class ShogiGame():
               
             count_true += flag_true
             count_false += flag_false
-            
-        
         return piece_all_
 
     def convert_kifu_move_to_move(self, kifu_move):
@@ -597,8 +674,7 @@ class ShogiGame():
                         point_before = self.piece_all[index].point
                         
         self.proceed_turn(point_before, point_after, is_promote)
-            
-            
+                        
     def save_kifu(self):
         end_time = datetime.datetime.today()
         if self.kifu_name == "":
@@ -616,7 +692,15 @@ class ShogiGame():
                 row = move.convert_move_to_kifu(previous_point_after)
                 f.write(row + "\n")
                 previous_point_after = move.point_after
-            f.write("詰み")
+            if self.foul == True:
+                f.write("反則負け")
+                f.write("# " + self.foul_msg)
+            elif self.is_repetition_of_moves == True:
+                f.write("千日手")                
+            elif self.is_checkmate == True:
+                f.write("詰み")
+            else:
+                f.write("投了")
                     
 def main():
     game = ShogiGame()

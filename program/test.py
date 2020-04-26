@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
+import pprint
 
 
+l = [1,2,3,4,5]
 
-while True:
-    for i in range(4):
-        print(1)
-        break
-    print(2)
+print(l[:-1][::-1])
