@@ -36,6 +36,60 @@ class PieceID(enum.IntEnum):
     hu = 8
     to = -8
 
+def get_csa_name(name):
+    if name == "gyoku":
+        csa_name = "OU"
+    elif name == "hisya":
+        csa_name = "HI"
+    elif name == "ryu":
+        csa_name = "RY"
+    elif name == "kaku":
+        csa_name = "KA"
+    elif name == "uma":
+        csa_name = "UM"
+    elif name == "kin":
+        csa_name = "KI"
+    elif name == "gin":
+        csa_name = "GI"
+    elif name == "narigin":
+        csa_name = "NG"
+    elif name == "kei":
+        csa_name = "KE"
+    elif name == "narikei":
+        csa_name = "NK"
+    elif name == "kyo":
+        csa_name = "KY"
+    elif name == "narikyo":
+        csa_name = "NY"
+    elif name == "hu":
+        csa_name = "FU"
+    elif name == "to":
+        csa_name = "TO"
+    else:
+        print("unknown piece name:{}".format(name))
+    return csa_name
+
+def get_promoted_csa_name(name):
+    if name == "HI":
+        promoted_csa_name = "RY"
+    elif name == "KA":
+        promoted_csa_name = "UM"
+    elif name == "GI":
+        promoted_csa_name = "NG"
+    elif name == "KE":
+        promoted_csa_name = "NK"
+    elif name == "KY":
+        promoted_csa_name = "NY"
+    elif name == "FU":
+        promoted_csa_name = "TO"
+    return promoted_csa_name
+
+def is_promote_from_csa_name(csa_name):
+    if csa_name in ["RY", "UM", "NG", "NK", "NY", "TO"]:
+        return True
+    else:
+        return False
+
 class Piece():
     def __init__(self, name_, point_, owner_, is_promote_ = False, is_hold_ = False):
         self.ID = PieceID[name_]
@@ -119,6 +173,8 @@ class Move():
         return kifu
         
 class ShogiGame():
+    
+    
     def __init__(self, sente_ = True, kifu_name_ = ""):
         self.sente = sente_
         self.turn = sente_
@@ -474,7 +530,6 @@ class ShogiGame():
         if count >= 4:
             self.is_repetition_of_moves = True
         
-    
     def is_check(self, piece_all_, turn_):
         turn = not turn_
         for piece in piece_all_:
@@ -511,23 +566,25 @@ class ShogiGame():
         # 成るしかないときは1を返す
         
         promote_condition = -1 
-        if point_before_[0] != 0:   # 盤面上の駒
-            if name_ in ["hu", "kyo", "kei", "gin", "hisya", "kaku"]:       
-                if turn_ == True and point_after_[1] <= 3:
-                    if name_ in ["hu", "kyo"] and point_after_[1] == 1:
-                        promote_condition = 1
-                    elif name_ == "kei" and point_after_[1] <= 2:
-                        promote_condition = 1
-                    else:
-                        promote_condition = 0
+        if point_before_[1] != 0 and point_before_[1] != 10:   # 盤面上の駒
+            if name_ in ["hu", "kyo", "kei", "gin", "kaku", "hisya"]:       
+                if turn_ == True:
+                    if point_before_[1] <= 3 or point_after_[1] <= 3:
+                        if name_ in ["hu", "kyo"] and point_after_[1] == 1:
+                            promote_condition = 1
+                        elif name_ == "kei" and point_after_[1] <= 2:
+                            promote_condition = 1
+                        else:
+                            promote_condition = 0
                         
-                elif turn_ == False and point_after_[1] >= 7:
-                    if name_ in ["hu", "kyo"] and point_after_[1] == 9:
-                        promote_condition = 1
-                    elif name_ == "kei" and point_after_[1] >= 8:
-                        promote_condition = 1
-                    else:
-                        promote_condition = 0 
+                elif turn_ == False:
+                    if point_before_[1] >= 7 or point_after_[1] >= 7:
+                        if name_ in ["hu", "kyo"] and point_after_[1] == 9:
+                            promote_condition = 1
+                        elif name_ == "kei" and point_after_[1] >= 8:
+                            promote_condition = 1
+                        else:
+                            promote_condition = 0 
         return promote_condition
         
     def get_piece_index(self,piece_all_, point_):
@@ -701,9 +758,274 @@ class ShogiGame():
                 f.write("詰み")
             else:
                 f.write("投了")
+                
+    def get_legal_move(self):
+        legal_move = []
+        for piece in self.piece_all:
+            if piece.point[1] == 0 or piece.point[1] == 10:
+                point_before_str = "00"
+            else:
+                point_before_str = "{}{}".format(piece.point[0], piece.point[1])
+            for point_after in piece.movable_point:
+                
+                point_after_str = "{}{}".format(point_after[0], point_after[1])
+                check_result = self.check_is_able_promote(self.turn, piece.name, piece.point, point_after)
+                if check_result == -1:
+                    piece_name_after = get_csa_name(piece.name)
+                    legal_move.append(point_before_str+point_after_str+piece_name_after)
+                elif check_result == 1:
+                    piece_name_after = get_promoted_csa_name(get_csa_name(piece.name))
+                    legal_move.append(point_before_str+point_after_str+piece_name_after)
+                elif check_result == 0:
+                    piece_name_after = get_csa_name(piece.name)
+                    legal_move.append(point_before_str+point_after_str+piece_name_after)
+                    piece_name_after = get_promoted_csa_name(get_csa_name(piece.name))
+                    legal_move.append(point_before_str+point_after_str+piece_name_after)
+        return legal_move
+    
+    def get_board(self):
+        board = "'  9  8  7  6  5  4  3  2  1\n"
+        for j in range(9):
+            board += "P{}".format(j+1)
+            for i in range(9):
+                index = self.get_piece_index(self.piece_all, [9-i, j+1])
+                if index == -1:
+                    board += " * "
+                else:
+                    if self.piece_all[index].owner == True:
+                        board += "+"
+                    else:
+                        board += "-"
+                    board += get_csa_name(self.piece_all[index].name)
+            board += "\n"
+            
+        possession_piece_name = ["hu", "kyo", "kei", "gin", "kin", "hisya", "kaku"]
+        possession_piece_true = {}
+        possession_piece_false = {}
+        for piece_name in possession_piece_name:
+            possession_piece_true[piece_name] = 0
+            possession_piece_false[piece_name] = 0
+        
+        for piece in self.piece_all:
+            if piece.is_hold == True:
+                if piece.owner == True:
+                    possession_piece_true[piece.name] += 1
+                else:                    
+                    possession_piece_false[piece.name] += 1
+                    
+        for piece_name in possession_piece_name:
+            piece_name_csa = get_csa_name(piece_name)
+            if possession_piece_true[piece_name] != 0:
+                board += "P+" + "00{}".format(piece_name_csa) * possession_piece_true[piece_name]
+                board += "\n"
+        for piece_name in possession_piece_name:
+            piece_name_csa = get_csa_name(piece_name)
+            if possession_piece_false[piece_name] != 0:
+                board += "P-" + "00{}".format(piece_name_csa) * possession_piece_false[piece_name]
+                board += "\n"
+        
+        return board
+    
+    def push(self, csa_move):
+        if csa_move == "resign":
+            self.end_game()
+        else:
+            point_before = [int(csa_move[0]), int(csa_move[1])]
+            if point_before == [0, 0]:
+                for p in self.piece_all:
+                    if (csa_move[4:] == get_csa_name(p.name))\
+                    and (p.is_hold == True)\
+                    and (p.owner == self.turn):
+                        point_before = p.point
+                        break
+                                
+            point_after = [int(csa_move[2]), int(csa_move[3])]
+            index = self.get_piece_index(self.piece_all, point_before)
+            csa_name = get_csa_name(self.piece_all[index].name)
+            is_promote_before = is_promote_from_csa_name(csa_name)
+            is_promote_after = is_promote_from_csa_name(csa_move[4:])
+            if is_promote_before == False and is_promote_after == True:
+                is_promote = True
+            else:
+                is_promote = False
+            self.proceed_turn(point_before, point_after, is_promote)
+                    
+                
+
+
+
+def check(is_print=True):
+    import shogi_game_cshogi
+    import random
+    import cshogi
+    import time
+    import re
+    game_original = ShogiGame()
+    game_cshogi = shogi_game_cshogi.Game()
+    is_same = True
+    # board_cshogi = ""
+    # board_cshogi_list = str(game_cshogi.board).split("\n")
+    # for l in board_cshogi_list:
+    #     if l.startswith(("P", "'")):
+    #         board_cshogi += l + "\n"
+    # legal_move_cshogi = set()
+    # for legal_move in game_cshogi.board.legal_moves:
+    #     legal_move_cshogi.add(cshogi.move_to_csa(legal_move))
+    
+    # board_original = game_original.get_board()
+    # legal_move_original = set(game_original.get_legal_move())
+    
+    # if board_original != board_cshogi:
+    #     print("board is different")
+    #     print(board_original)
+    #     print("===============================")
+    #     print(board_cshogi)
+    #     print("===============================")
+    #     is_same = False
+    # if legal_move_original != legal_move_cshogi:
+    #     print("legal_move is different")
+    #     print(legal_move_original)
+    #     print("===============================")
+    #     print(legal_move_cshogi)
+    #     print("===============================")
+    #     is_same = False
+    # if is_same == False:
+    #     print("not start")
+    # else:
+    #     print("start check")
+    board_original = game_original.get_board()
+    if is_print:
+        print("{}手目".format(game_original.turn_num))
+        print(board_original)
+        print("===============================")
+    while is_same == True:
+        move = random.choice(game_original.get_legal_move())
+        game_original.push(move)
+        is_end_original = game_original.is_end
+        is_end_cshogi = game_cshogi.turn_process(move)
+        board_cshogi = ""
+        board_cshogi_list = str(game_cshogi.board).split("\n")
+        
+        board_original = "\n".join(game_original.get_board().split("\n")[:10])
+        board_original += "\n"
+        legal_move_original = set(game_original.get_legal_move())
+        
+        for l in board_cshogi_list:
+            if (l.startswith(("'"))) or (re.findall(r"P\d", l) != []):
+                board_cshogi += l + "\n"
+        hand_cshogi = [[], []]
+        hand_original = [[], []]
+        for l in board_cshogi_list:
+            if l.startswith("P+"):
+                hand_cshogi[0] += re.findall(r"00(..)", l)
+            elif l.startswith("P-"):
+                hand_cshogi[1] += re.findall(r"00(..)", l)
+        for l in game_original.get_board().split("\n"):
+            if l.startswith("P+"):
+                hand_original[0] += re.findall(r"00(..)", l)
+            elif l.startswith("P-"):
+                hand_original[1] += re.findall(r"00(..)", l)
+        legal_move_cshogi = set()
+        for legal_move in game_cshogi.board.legal_moves:
+            legal_move_cshogi.add(cshogi.move_to_csa(legal_move))
+            
+        
+        if is_print:
+            print("{}手目".format(game_original.turn_num))
+            print(move)
+            print(board_original)
+            print("===============================")
+        
+        if board_original != board_cshogi or\
+            equal_list(hand_cshogi[0], hand_original[0]) == False or\
+            equal_list(hand_cshogi[1], hand_original[1]) == False:
+            print("board is different")
+            is_same = False
+        if legal_move_original != legal_move_cshogi:
+            print("legal_move is different")
+            is_same = False
+        if is_end_original != is_end_cshogi:
+            print("is_end is different")
+            is_same = False
+            
+        if is_end_original == True:
+            print("successfully finished")
+            if game_original.foul == True:
+                if game_original.winner == "先手":
+                    msg = "後手反則負け\n" + game_original.foul_msg
+                else:
+                    msg = "先手反則負け\n" + game_original.foul_msg                
+            elif game_original.is_repetition_of_moves == True:
+                msg = "千日手です"
+            else:
+                msg = "まで、{}手で{}の勝ちです".format(game_original.turn_num - 1, game_original.winner)
+            print(msg)
+            break
+        
+        if game_original.turn_num == 1000:
+            print("1000手に達したので引き分け")
+            break
+        
+    if is_same == True:
+        return game_original.turn_num
+    else:
+        print(board_original)
+        print("先手持駒:{}".format(hand_original[0]))
+        print("後手持駒:{}".format(hand_original[1]))
+        print("===============================")
+        print(board_cshogi)
+        print("先手持駒:{}".format(hand_cshogi[0]))
+        print("後手持駒:{}".format(hand_cshogi[1]))
+        print("===============================")
+        print(legal_move_original)
+        print("===============================")
+        print(legal_move_cshogi)
+        print("===============================")
+        print(legal_move_original ^ legal_move_cshogi)
+        print("===============================")
+        print(is_end_original, is_end_cshogi)
+        game_original.end_game()
+        return -1
+
+def equal_list(lst1, lst2):
+    lst = lst1.copy()
+    for element in lst2:
+        try:
+            lst.remove(element)
+        except ValueError:
+            break
+    else:
+        if not lst:
+            return True
+    return False
+
+def check_loop(total_turn_num=100000):
+    turn = 0
+    while turn < total_turn_num:
+        turn_one_game = check(False)
+        if turn_one_game != -1:
+            turn += turn_one_game
+        else:
+            break
+        
+        
+def game_test():
+    game = ShogiGame()
+    while True:
+        print(game.get_board())
+        csa_move = input("input csa move\n>>")
+        if csa_move == "show":
+            print(game.get_legal_move())
+        elif csa_move == "resign":
+            game.push(csa_move)
+        elif csa_move in game.get_legal_move():
+            game.push(csa_move)
+        else:
+            print("無効な指し手です")     
                     
 def main():
-    game = ShogiGame()
+    check_loop()
+        
 
 if __name__ == "__main__":
     main()
